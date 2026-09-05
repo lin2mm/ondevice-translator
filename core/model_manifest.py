@@ -149,8 +149,12 @@ class Manifest:
                 errs.append(f"{a.id}: sha256 不是 64 位小写十六进制（发布前请用 tools/build_manifest.py 生成）")
             if a.size_bytes <= 1_000_000:
                 errs.append(f"{a.id}: size_bytes={a.size_bytes} 小得可疑（单位写错？）")
-            if not a.url.startswith("https://"):
-                errs.append(f"{a.id}: url 必须是 https")
+            if not (a.url.startswith("https://") or a.url.startswith("bundle://")):
+                # bundle:// = 权重已随 App 包分发（ios/install-on-iphone15.sh 的打包模式），
+                # ModelStore 不从该 url 下载，无 CDN 语义；只有 https:// 是运行时下载路径。
+                # 实测（2026-09-06 Arena）：原检查只放行 https://，导致 install 脚本的
+                # make_manifest 步骤 exit 2 中断装机 —— bundle:// 必须放行。
+                errs.append(f"{a.id}: url 必须是 https:// 或 bundle://")
             if a.size_bytes > 0 and a.min_free_bytes < int(a.size_bytes * 1.05):
                 # 允许 1.05x 余量：解压/临时文件需要空间
                 errs.append(f"{a.id}: min_free_bytes({a.min_free_bytes}) < size_bytes({a.size_bytes})，下载中途会满盘")
