@@ -48,3 +48,28 @@
 ## 依赖缺失
 - Mac 侧：Xcode 26.6 已装（Hermes 报告）；`xcodegen`/`cmake`/`ninja` 由 install 脚本 preflight 自检提示
 - Arena 侧沙箱：无 Xcode/macOS SDK，Swift 无法编译验证（已用静态审查 + 头文件探针兜底）
+
+## Arena 会话引导（2026-09-06 实测：跨会话快照会丢失**整个 .git 目录**、**~/.ssh/config**，
+## 并把私钥权限 600 改成 644；私钥与 known_hosts 文件本身保留）
+恢复步骤（每次新会话先跑）：
+```bash
+chmod 600 ~/.ssh/id_ed25519
+cat > ~/.ssh/config <<'EOF'
+Host github.com-ondevice
+  HostName ssh.github.com
+  Port 443
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+git clone -b arena/fix-first-build-blockers \
+  git@github.com-ondevice:lin2mm/ondevice-translator.git ~/ondevice-translator
+cd ~/ondevice-translator
+git config user.name "Arena (agent)"; git config user.email "arena@users.noreply.github.com"
+```
+若私钥也丢失：ssh-keygen 重新生成 → 维护者在 GitHub Deploy Keys 换公钥 → 再执行上述步骤。
+**原则：GitHub 远程是唯一事实源，workspace 是一次性工作台——任何未 push 的改动都会丢。**
+
+## 本地验证工具
+- `tools/verify/verify_llama_api.sh`：复现 llama.cpp API 编译级核对（升级 llama 版本后先跑它）
