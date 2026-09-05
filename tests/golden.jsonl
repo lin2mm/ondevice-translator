@@ -1,0 +1,4 @@
+{"input": "今天天气很好。我们出去走走！你带伞了吗？", "sentences": ["今天天气很好。", "我们出去走走！", "你带伞了吗？"], "masked": "今天天气很好。我们出去走走！你带伞了吗？", "tokens": 23}
+{"input": "Use tools e.g. hammer. Then stop.", "sentences": ["Use tools e.g. hammer.", "Then stop."], "masked": "Use tools e.g. hammer. Then stop.", "tokens": 16}
+{"input": "请发送 {{user_name}} 到 support@x.com，折扣 20%，并看 <b>粗体</b>。", "sentences": ["请发送 {{user_name}} 到 support@x.com，折扣 20%，并看 <b>粗体</b>。"], "masked": "请发送 ⟨fmt1⟩} 到 ⟨url1⟩，折扣 ⟨num1⟩，并看 ⟨html1⟩粗体⟨html2⟩。", "tokens": 27}
+{"input": "总计 1,280 美元，含税。", "sentences": ["总计 1,280 美元，含税。"], "masked": "总计 ⟨num1⟩ 美元，含税。", "tokens": 16}

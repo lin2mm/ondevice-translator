@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>本地翻译 · 免安装试用</title>
+<style>
+  :root{color-scheme:dark;--bg:#0b0d10;--fg:#e8eaed;--mut:#8a929c;--card:#15181d;--line:#242a32;--ok:#3ddc84;--warn:#ffb454}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,"PingFang SC",system-ui,sans-serif;padding:14px max(14px,env(safe-area-inset-left)) calc(20px + env(safe-area-inset-bottom))}
+  h1{font-size:17px;margin:2px 0 10px;font-weight:600}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select,button,input{font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  button{cursor:pointer}
+  button.primary{background:#1b6ef3;border-color:#1b6ef3;font-weight:600}
+  textarea{width:100%;min-height:120px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;resize:vertical}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+  .out{white-space:pre-wrap;min-height:60px;font-size:16px}
+  small,.mut{color:var(--mut);font-size:12.5px}
+  .stat{font-variant-numeric:tabular-nums}
+  .bar{height:6px;background:#20252c;border-radius:99px;overflow:hidden;margin:6px 0}
+  .bar>i{display:block;height:100%;width:0;background:var(--ok);transition:width .25s}
+  .warn{color:var(--warn)}
+  a{color:#7ab8ff}
+</style>
+</head>
+<body>
+<h1>本地翻译（浏览器内推理）</h1>
+<div class="row">
+  <select id="dir"><option value="auto">自动</option><option value="zh2en">中→英</option><option value="en2zh">英→中</option></select>
+  <select id="tier" style="max-width:46%">
+    <option value="Xenova/nllb-200-distilled-600M">试玩档 600M（质量差，能装）</option>
+    <option value="Xenova/m2m100_418M">更小块 418M</option>
+    <option value="__custom">自定义模型 id…</option>
+  </select>
+  <button id="install" hidden>添加到主屏幕</button>
+</div>
+<input id="custom" class="card" placeholder="自定义：HF 上带 onnx/ + transformers.js 支持的模型 id" hidden style="width:100%">
+
+<div class="card">
+  <textarea id="src" placeholder="粘贴即译 · 全程在你手机里跑，不上传任何文本"></textarea>
+  <div class="row" style="margin-top:8px">
+    <button class="primary" id="go">翻译</button>
+    <button id="swap">交换</button>
+    <button id="cp">复制</button>
+    <button id="learn" hidden>记住这条修改</button>
+    <span class="mut stat" id="stat">未加载模型</span>
+  </div>
+</div>
+
+<div class="bar" id="prog" hidden><i></i></div>
+<div class="card"><div class="mut">译文（可编辑，编辑后点“记住这条修改”）</div>
+  <div id="out" class="out" contenteditable="true"></div></div>
+
+<div class="card">
+  <div class="mut" id="eng">引擎：未初始化</div>
+  <div class="mut">这条路线的定位是<b>免账号免 Xcode 的试用外壳</b>：iPhone Safari 的 WebGPU/内存预算决定了它跑不动 462MB 的 Hy-MT2 档，
+  所以默认给的是 600M 试玩模型 —— <span class="warn">它的中英质量明显低于原生 App 方案，别用它判断项目成败</span>。
+  原生方案见 <code>../README.md</code>。</div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

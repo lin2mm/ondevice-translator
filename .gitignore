@@ -1,0 +1,15 @@
+# 权重绝不进 git（GitHub 单文件 100MB 上限；LFS 也要钱/配额）
+*.gguf
+ios/Resources/models/
+android/app/src/main/assets/models/
+ios/Vendor/
+android/vendor/
+build/
+dist/
+dd/
+.gradle/
+build/
+*.xcworkspace/
+.DS_Store
+__pycache__/
+/vendor/

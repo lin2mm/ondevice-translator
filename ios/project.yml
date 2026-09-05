@@ -1,0 +1,74 @@
+# XcodeGen 工程定义 —— 在 mac 上 `xcodegen generate` 就得到 LocalMT.xcodeproj
+# 为什么用 XcodeGen 而不手搓 .pbxproj：pbxproj 是机器格式，人手写会错且 diff 不可读。
+name: LocalMT
+options:
+  bundleIdPrefix: dev.localmt
+  deploymentTarget:
+    iOS: "18.0"          # 低于 18 会失去系统 Translation 框架（本项目 C 档兜底）
+  createIntermediateGroups: true
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: false
+    CODE_SIGN_STYLE: Automatic
+    # 免费个人账号也能跑真机（7 天重签）。要加 increased-memory-limit 就必须有付费开发者账号。
+    DEVELOPMENT_TEAM: ""            # ← 你的 Team ID；空 = 用个人免费账号
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ONLY_ACTIVE_ARCH: YES
+targets:
+  LocalMT:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Bridge              # LlamaBridge.h/.mm（ObjC++，不需要 Swift/C++ interop 配置）
+      - path: Resources           # manifest.json + models/*.gguf（打进包 = 装上即离线）
+    info:
+      path: Support/Info.plist
+      properties:
+        CFBundleDisplayName: 本地翻译
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false      # 端侧推理、无自定义加密 → 免出口申报问卷
+        LSApplicationCategoryType: public.app-category.productivity
+        # 完全离线：不声明任何网络权限例外；只有下载模型时才用 URLSession
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.localmt.app
+        SWIFT_OBJC_BRIDGING_HEADER: $(SRCROOT)/Bridge/LlamaBridge.h
+        CLANG_CXX_LANGUAGE_STANDARD: gnu++17
+        GCC_ENABLE_CPP_EXCEPTIONS: YES
+        GCC_ENABLE_CPP_RTTI: YES
+        FRAMEWORK_SEARCH_PATHS: $(inherited) $(SRCROOT)/Vendor
+        HEADER_SEARCH_PATHS: $(inherited) $(SRCROOT)/Vendor/llama.xcframework/ios-arm64/Headers
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    dependencies:
+      # 引擎链接二选一：
+      # (A) 本地编出来的 xcframework（tools/build_llama_ios.sh 产出后放到 Vendor/）
+      - framework: Vendor/llama.xcframework
+        embed: false
+      # (B) 不想手编就改用 SPM：把上面两行注释掉，打开 project.yml 底部 packages 里的 llama.swift，
+      #     这里换成 ` - package: llama.swift
+      #                 - framework: llama`
+    entitlements:
+      path: Support/LocalMT.entitlements
+      properties: {}                      # 付费账号时在此加 com.apple.developer.kernel.increased-memory-limit
+packages: {}
+# packages:
+#   llama.swift:
+#     url: https://github.com/mattt/llama.swift
+#     minVersion: 2.10549.0
+schemes:
+  LocalMT:
+    build:
+      targets:
+        LocalMT: all
+    run:
+      config: Debug
+      # 真机跑的时候用这个 scheme；iPhone 15 连上直接 Cmd+R
+    profile:
+      config: Release

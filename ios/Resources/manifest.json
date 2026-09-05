@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "version": "stage1-none",
+  "updated_at": "2026-09-05T00:00:00Z",
+  "glossary_schema": 1,
+  "min_app_build": 1,
+  "forced_update": false,
+  "assets": [],
+  "_note": "阶段1 无资产（用系统 Translation 框架）。阶段2 用 `python3 ../../tools/build_manifest.py --dir ./weights --base-url https://你的CDN/models --version 2026.09.05-a --out Resources/manifest.json` 生成，sha256/体积必须实测。"
+}

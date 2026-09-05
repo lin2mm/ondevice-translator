@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dataExtractionRules xmlns:tools="http://schemas.android.com/tools">
+  <!-- 权重绝不进云备份（1.1GB）；学习数据（TM/术语）留在设备本地，用户自行导出 -->
+  <cloud-backup tools:exclude="true" />
+  <device-transfer exclude="models/**" />
+</dataExtractionRules>

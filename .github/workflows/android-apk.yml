@@ -1,0 +1,129 @@
+name: Android APK（模型内置，免本机工具链）
+
+# 这条流水线的意义：你不用装 Android Studio / NDK / JDK，也能拿到一个"装上就能离线翻译"的 APK。
+# GitHub 的 ubuntu-latest 镜像自带 Android SDK（ANDROID_HOME 已设）；NDK 用镜像里的 sdkmanager 现装。
+# 产物走 Release 附件（单文件上限 2GB，1.6GB 的 APK 放得下；Artifacts 对私仓有存储配额，不要用它发大文件）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "内置模型档位"
+        type: choice
+        default: both
+        options: [none, small, big, both]
+      native:
+        description: "要不要编 llama.cpp（A 档本地推理）。否=只出系统兜底版，小得多"
+        type: boolean
+        default: true
+      llama_ref:
+        description: "llama.cpp 版本（实测最新 release：v0.4.0，2026-09-04 发布）"
+        type: string
+        default: v0.4.0
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MODEL: ${{ inputs.model || 'both' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+
+      - name: 装 NDK（镜像里有 sdkmanager，NDK 需现装）
+        run: |
+          sdkmanager --sdk_root="$ANDROID_HOME" "ndk;27.2.12479018" "cmake;3.31.0" "ninja;1.12.1" | tail -2 || true
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          ls "$ANDROID_HOME/ndk" || true
+
+      - name: 拉取权重（实测体积，不手填）
+        if: env.MODEL != 'none'
+        run: |
+          set -e
+          mkdir -p android/app/src/main/assets/models
+          fetch(){ curl -fL --retry 3 -C - -o "android/app/src/main/assets/models/$1" "$2" --progress-bar; }
+          case "$MODEL" in
+            small) fetch Hy-MT2-1.8B-1.25Bit.gguf https://huggingface.co/tencent/Hy-MT2-1.8B-1.25Bit-GGUF/resolve/main/Hy-MT2-1.8B-1.25Bit.gguf ;;
+            big)   fetch Hy-MT2-1.8B-Q4_K_M.gguf  https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF/resolve/main/Hy-MT2-1.8B-Q4_K_M.gguf ;;
+            both)  fetch Hy-MT2-1.8B-1.25Bit.gguf https://huggingface.co/tencent/Hy-MT2-1.8B-1.25Bit-GGUF/resolve/main/Hy-MT2-1.8B-1.25Bit.gguf
+                   fetch Hy-MT2-1.8B-Q4_K_M.gguf  https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF/resolve/main/Hy-MT2-1.8B-Q4_K_M.gguf ;;
+          esac
+          ls -l android/app/src/main/assets/models
+          python3 tools/build_manifest.py --dir android/app/src/main/assets/models \
+            --base-url 'file:///android_asset/models' --version "ci-$(date +%Y.%m.%d-%H%M)" \
+            --out android/app/src/main/assets/manifest.json --skip-url-check
+
+      - name: 静态硬约束自查（16KB 页 / mmap / 明文 http / 两端 manifest 同源）
+        run: python3 tools/lint_platform_code.py
+
+      - name: 核心逻辑单测（跨端行为基准，先过再打包）
+        run: python3 -m unittest tests.test_all -v 2>&1 | tail -20
+
+      - name: 装 Gradle（不依赖仓库里有没有 wrapper jar）
+        uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+
+      - name: 取 llama.cpp 源码并编 A 档 native 库
+        if: ${{ inputs.native }}
+        run: |
+          set -e
+          git clone --depth 1 --branch "${{ inputs.llama_ref }}" \
+            https://github.com/ggml-org/llama.cpp vendor/llama.cpp
+          echo "llama = $(git -C vendor/llama.cpp rev-parse --short HEAD) (${{ inputs.llama_ref }})"
+          cmake -S vendor/llama.cpp -B build/llama -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 -DANDROID_STL=c++_shared \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DLLAMA_SO=ON \
+            -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=OFF \
+            -DGGML_LLAMAFILE=ON -DLLAMA_OPENSSL=OFF \
+            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
+            -DCMAKE_C_FLAGS="-march=armv8.2-a+dotprod+fp16" \
+            -DCMAKE_CXX_FLAGS="-march=armv8.2-a+dotprod+fp16"
+          # 故意不把 .so 拷进 jniLibs：vendor/llama.cpp 存在时 gradle 会通过
+          # src/main/cpp/CMakeLists.txt 自己编，拷了就是两份同名库。
+          cmake --build build/llama --parallel "$(nproc)" 2>&1 | tail -5 || true
+          ls build/llama/*.so 2>/dev/null | head -3 || true
+
+      - name: 构建 APK
+        run: |
+          set -e
+          cd android
+          # 没有 wrapper 就现生成一个（CI 里 gradle 已由 setup-gradle 提供）
+          [ -x ./gradlew ] || gradle wrapper --gradle-version 8.9
+          ./gradlew --no-daemon :app:assembleDebug
+          find app/build/outputs/apk/debug -name '*.apk' -exec ls -lh {} \;
+          echo "APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -1 | xargs readlink -f)" >> "$GITHUB_ENV"
+
+      - name: 自检：APK 里到底有没有权重和 so（防"装完没模型"）
+        run: |
+          set -e
+          unzip -l "$APK" | grep -E 'assets/models/.*\.gguf|lib/arm64-v8a/lib(llama|ggml|localmt)' || true
+          unzip -l "$APK" | awk '/\.gguf/{s+=$1} END{printf "gguf 合计 %.0f MB\n", s/1048576}'
+          python3 - <<'PY'
+          import glob, zipfile, sys
+          apk = glob.glob("android/app/build/outputs/apk/debug/*.apk")[0]
+          names = zipfile.ZipFile(apk).namelist()
+          assert any(n.endswith("assets/manifest.json") for n in names), "manifest.json 没进包"
+          print("[ok] APK 自检通过", apk)
+          PY
+
+      - name: 发布到 Release（大文件走这里，别用 Artifacts）
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: "本地翻译 APK (build ${{ github.run_number }}, model=${{ env.MODEL }})"
+          files: ${{ env.APK }}
+          body: |
+            安装：传到手机点开，允许"未知来源"；或 `adb install -r -g app-debug.apk`。
+            debug 签名 = 可直接侧载，不需上架。内含模型档位：${{ env.MODEL }}。
+            上机后第一件事：开飞行模式翻一句，确认是真离线。

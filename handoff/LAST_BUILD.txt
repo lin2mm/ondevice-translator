@@ -1,0 +1,13 @@
+# 首次构建日志
+
+commit: (initial)
+time: 2026-09-06T00:00:00Z
+cmd: git init && git add -A && mkdir -p handoff
+exit: 0
+note: 交接文件创建，等待 gh 身份验证后推送至远程仓库
+
+---
+
+pending: gh auth login --with-token
+pending: gh repo create <repo-url> --private
+pending: git push -u origin main
