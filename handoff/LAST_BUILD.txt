@@ -1,13 +1,29 @@
 # 首次构建日志
 
-commit: (initial)
+commit: 77bcb80
 time: 2026-09-06T00:00:00Z
-cmd: git init && git add -A && mkdir -p handoff
+cmd: |
+  1. git init && git add -A
+  2. 添加 AGENTS.md、handoff/STATUS.md、handoff/NEXT.md、handoff/LAST_BUILD.txt
+  3. 删除 build_llama_ios.sh.bak（占位文件）
+  4. git commit -m "chore: initial commit with AGENTS.md and handoff docs"
+  5. gh repo create --private --source=. --remote=origin --push
 exit: 0
-note: 交接文件创建，等待 gh 身份验证后推送至远程仓库
+note: 首次提交完成，远程仓库已创建并推送
+
+---
+
+推送记录:
+- 63 个文件，6844 行代码
+- 排除 ios/Vendor/llama.xcframework（生成产物）
+- 排除 models/*.gguf（462MB 权重待后下载）
+- 私有仓库 main 分支已更新
 
 ---
 
 pending: gh auth login --with-token
-pending: gh repo create <repo-url> --private
-pending: git push -u origin main
+pending: llama.xcframework 构建 (tools/build_llama_ios.sh)
+pending: Xcode 构建 LocalMT.app
+pending: 462MB 权重下载 & SHA256 校验
+pending: manifest.json 重新生成
+pending: 手机装机验证 (iPhone 15 真机)
