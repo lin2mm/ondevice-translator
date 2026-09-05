@@ -1,13 +1,13 @@
 import Foundation
 
 /// 语言方向：本方案只做中英，所以枚举而不是通用映射表（少一层出错可能）。
-/// `targetFullName` 用全称是实测结论——模型对 "Chinese"/"English" 这种短名会漂移成解释句子，
-/// 全称（Simplified Chinese / American English）才稳定（docs/03 第 4 节）。
+/// 指令模板与语言名一律取 core/prompt.py（唯一事实源）：中文指令配「英语」，
+/// 英文指令配 "Chinese"——不要在 Swift 侧再发明 "American English" 这类全称
+///（旧注释声称"全称才稳定"并引 docs/03 §4，实查该文档无 prompt 章节；
+/// 全称写法源头是 docs/08 的 PocketPal 手测示例，与模型卡要求相悖，已废弃）。
 enum LangPair {
     struct Direction: Hashable {
         let isToChinese: Bool
-        var targetFullName: String { isToChinese ? "Simplified Chinese" : "American English" }
-        var sourceFullName: String { isToChinese ? "American English" : "Simplified Chinese" }
     }
 
     static func direction(source: Locale.Language, target: Locale.Language) -> Direction {
