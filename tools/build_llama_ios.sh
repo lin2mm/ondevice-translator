@@ -55,7 +55,9 @@ build_arch(){
   cmake --build "$bdir" --parallel "$(sysctl -n hw.ncpu)"
   mkdir -p "$outdir/Headers"
   cp "$SRC/include/llama.h" "$SRC/ggml/include/"*.h "$outdir/Headers/"
-  find "$bdir" -name "*.a" -type f -exec cp -f {} "$outdir/" \;
+  # 幂等：排除上次的产物目录——否则重跑时 find 会把 out/libllama-all.a 拷到自身
+  #（cp "same file" 报错，set -e 直接中断），libtool 的输入 glob 也会吞进上次产物。
+  find "$bdir" -name "*.a" -type f -not -path "$outdir/*" -exec cp -f {} "$outdir/" \;
   ls -l "$outdir"
   echo "$outdir"
 }
@@ -75,17 +77,20 @@ rm -rf "$OUT"
 
 if [ $DEVICE_ONLY -eq 1 ]; then
   # Device-only: merge all libs and create single-slice xcframework
+  # 幂等：产物写 merged/ 子目录（与双 slice 路径一致）。"$DEV"/*.a 不递归子目录，
+  # 不会把上次产物吞进输入；写在 $DEV 根上则重跑必炸（输出文件落进输入 glob）。
   mkdir -p "$DEV/merged"
-  libtool -static -o "$DEV/libllama-all.a" $DEV/*.a 2>&1 | grep -v "has no symbols" || true
+  libtool -static -o "$DEV/merged/libllama-all.a" "$DEV"/*.a 2>&1 | grep -v "has no symbols" || true
   xcodebuild -create-xcframework \
-    -library "$DEV/libllama-all.a" -headers "$DEV/Headers" \
+    -library "$DEV/merged/libllama-all.a" -headers "$DEV/Headers" \
     -output "$OUT"
+  rm -rf "$DEV/merged"
 else
   # Device + Simulator: create xcframework with two slices
   # Note: we must use -static-library and specify libraries with their own headers
   mkdir -p "$DEV/merged" "$SIM/merged"
-  libtool -static -o "$DEV/merged/libllama-all.a" $DEV/*.a 2>&1 | grep -v "has no symbols" || true
-  libtool -static -o "$SIM/merged/libllama-all.a" $SIM/*.a 2>&1 | grep -v "has no symbols" || true
+  libtool -static -o "$DEV/merged/libllama-all.a" "$DEV"/*.a 2>&1 | grep -v "has no symbols" || true
+  libtool -static -o "$SIM/merged/libllama-all.a" "$SIM"/*.a 2>&1 | grep -v "has no symbols" || true
 
   xcodebuild -create-xcframework \
     -library "$DEV/merged/libllama-all.a" -headers "$DEV/Headers" \
