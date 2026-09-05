@@ -81,8 +81,11 @@ static int64_t LTMemsize(void) {
     }
     if (LTMemsize() > 0 && LTMemsize() < 4LL * 1000 * 1000 * 1000) { nCtx = 1024; gpuLayers = 0; }  // 老机器降级
     llama_model_params mp = llama_model_default_params();
-    mp.use_mmap = true;              // 必须 true：让内核能回收 page cache（false = 462MB 变纯 RSS）
-    mp.use_lock = true;
+    // v0.4.0 起 use_mmap/use_mlock 字段已从 llama_model_params 删除，改由 load_mode 表达
+    // （实测 v0.4.0 include/llama.h：字段只有 load_mode/lazy_mode 等，写 use_mmap 直接编译失败）。
+    //   MMAP = 内存映射，内核可回收 page cache（462MB 不变纯 RSS）；
+    //   刻意不用 MMAP_MLOCK：mlock 会把 462MB 钉死在物理内存，6GB 机器上是负资产。
+    mp.load_mode = LLAMA_LOAD_MODE_MMAP;
     mp.n_gpu_layers = gpuLayers;
     _model = llama_model_load_from_file(path.UTF8String, mp);
     if (!_model) { if (error) *error = LTErr(2, @"加载失败：确认 llama.cpp 支持 hunyuan-dense 与该量化类型"); return NO; }
@@ -122,7 +125,11 @@ static int64_t LTMemsize(void) {
     llama_sampler_chain_add(smpl, llama_sampler_init_temp(sp.temperature));
     llama_sampler_chain_add(smpl, llama_sampler_init_top_k(sp.topK));
     llama_sampler_chain_add(smpl, llama_sampler_init_top_p(sp.topP, 1));
-    llama_sampler_chain_add(smpl, llama_sampler_init_penalties(0, sp.repeatPenalty, 0.f, 0.f));
+    // v0.4.0 签名变为 (n_vocab, penalty_last_n, penalty_repeat, penalty_freq, penalty_present)：
+    // 旧的 4 参调用编译不过；且新 API 里 penalty_last_n=0 是"关闭惩罚"，必须显式给 64。
+    // n_vocab 用 llama_vocab_n_tokens(vocab) 实测值（llama_n_vocab 已弃用）。
+    llama_sampler_chain_add(smpl,
+        llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), 64, sp.repeatPenalty, 0.f, 0.f));
     llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 
     llama_memory_clear(llama_get_memory(_ctx), false);

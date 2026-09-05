@@ -58,3 +58,26 @@ GitHub 仓库信息:
 - Arena 推送 arena/* 工作分支
 - Hermes 在 Mac 上执行 xcframework 构建、Xcode 编译、装机
 - 通过 PR 交接，不同时同一工作分支
+
+---
+
+# Arena 静态审查记录（分支 arena/fix-first-build-blockers）
+
+commit: 基于 7639637 (main)
+time: 2026-09-06T00:00:00Z（Arena 侧会话时间，非 Mac 实测）
+cmd: |
+  1. git clone（Deploy Key）→ 核对 main@7639637，工作树干净
+  2. git ls-remote --tags ggml-org/llama.cpp → v0.4.0 存在（5266f24, 2026-09-04）
+  3. 浅克隆 llama.cpp v0.4.0 → 逐字段核对 llama.h / ggml-backend.h
+  4. g++ -fsyntax-only 探针（vendor-verify/probe_v040.cpp）：补丁后 API 全部通过；
+     对照探针（probe_old.cpp）复现原代码 3 个编译错误（use_mmap/use_lock/penalties 4参）
+  5. python3 -m pytest tests/ -q → 39 passed
+  6. python3 tools/lint_platform_code.py → 通过（静态约束）
+  7. 出补丁 7 文件（见 handoff/STATUS.md 表格）+ 更新交接三件套
+exit: 0（以上全部在 Arena 沙箱通过）
+first_error: 无
+note: |
+  Arena 沙箱无 Xcode/Swift 编译器，iOS 目标代码的修复依据 = 真实 v0.4.0 头文件的
+  编译级核对 + Apple 官方文档核对 + 逐符号交叉审查，非臆测。
+  "能编译过 App"仍待 Hermes 在 Mac 上跑 xcodebuild 确认。
+pending: 与 main@7639637 的 pending 相同（xcframework 构建/Xcode 编译/权重/装机/离线验收）

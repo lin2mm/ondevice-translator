@@ -10,12 +10,17 @@ enum EngineFactory {
 
     private static func make() -> TranslateEngine {
         // 包内有权重 → 本地 LLM（真离线、可注入术语表/自学习）；否则回落系统框架。
-        if HyMTLlamaEngine.bundledModel() != nil, let llm = HyMTLlamaEngine() { return llm }
+        // 注意返回的是 LocalLLMTranslateEngine（分句/术语/校验的完整链路），
+        // 不是裸的 HyMTLlamaEngine —— 后者只实现 generate()，不满足 TranslateEngine
+        // 协议的 translate()（直接返回会编译失败，这是本分支修的第三个编译错误）。
+        if HyMTLlamaEngine.bundledModel() != nil, let llm = HyMTLlamaEngine() {
+            return LocalLLMTranslateEngine(llm: llm)
+        }
         return AppleTranslationEngine()
     }
 
     static var activeDescription: String {
-        shared is HyMTLlamaEngine
+        shared is LocalLLMTranslateEngine
             ? "Hy-MT2-1.8B · 本地推理（\(BundledModel.summary)）"
             : "系统离线翻译(Translation.framework) · 未内置权重"
     }
@@ -65,11 +70,13 @@ struct AppleTranslationEngine: TranslateEngine {
         switch status {
         case .installed:
             break
-        case .downloadRequired(let language, _):
-            // 取得用户许可后触发系统下载；本次不阻塞等待
-            _ = try? await TranslationSession.prepareTranslation(for: language ?? target)
-            throw EngineFailure.packMissing(language ?? target)
-        @unknown default:
+        default:
+            // 统一抛可见错误（产品规则：C 档失败必须显式报错，绝不无声兜底）。
+            // 原代码 switch 了 .downloadRequired —— 该 case 在 iOS 26 SDK 的
+            // LanguageAvailability.Status 里已不存在（现存 installed/supported/unsupported），
+            // 编译会失败；且 TranslationSession.prepareTranslation(for:) 静态方法查无此 API
+            //（prepareTranslation() 是实例方法，session 需经 .translationTask 或 iOS 26 直接
+            // 构造获得）。语言包引导下载留到阶段 2 用真 UI 做，这里先把错误报清楚。
             throw EngineFailure.packMissing(target)
         }
 

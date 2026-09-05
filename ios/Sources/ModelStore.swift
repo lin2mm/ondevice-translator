@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import Combine
+import Network
 
 /// 权重下载与校验（iOS 侧）。行为契约 = core/model_manifest.py + docs/05 §3。
 /// 关键决定：
@@ -147,13 +148,16 @@ public actor ModelStore {
             state = st; continuation?.yield(st)
             return st
         }
-        if !allowCellular && NetworkPath.isExpensive() {
+        if !allowCellular && NetworkChecker.isExpensive() {
             let st = DownloadState.queued(reason: "需要 Wi-Fi")
             state = st; continuation?.yield(st)
             return st
         }
         let need = asset.sizeBytes
-        if try availableCapacity() < Int64(need * 11 / 10) {
+        if ((try? availableCapacity()) ?? Int64.max) < Int64(need * 11 / 10) {
+            // 原代码在非 throws 的 ensureReady 里裸 try availableCapacity()，编译不过。
+            // 拿不到容量时按乐观处理（.max）：真没磁盘会在下载阶段以 .failed 收场，
+            // 比误报"磁盘不足"拦住用户更好。
             let st = DownloadState.failed("磁盘可用空间不足（需 \(need / 1_000_000) MB，含临时文件余量）")
             state = st; continuation?.yield(st)
             return st
@@ -245,7 +249,9 @@ public actor ModelStore {
                     await MainActor.run { _ = Double(done) / Double(total) }
                 }
             }
-            return hasher.finalize().hexString.lowercased() == asset.sha256.lowercased()
+            // SHA256.Digest 没有 .hexString 成员（原代码引用了不存在的 API，编译不过）
+            let hex = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+            return hex.lowercased() == asset.sha256.lowercased()
         }.value
 
         if ok {
@@ -320,7 +326,18 @@ private final class StreamFile {
     func close() { try? fh?.close() }
 }
 
-extension NetworkPath { static func isExpensive() -> Bool {
-    let p = NetworkPath(NWPathParameters(constrainedTo: .global))
-    return p?.usesInterfaceType(.cellular) ?? false || (p?.isExpensive ?? false)
-} }
+/// NetworkChecker：回答"当前是否在计费网络（蜂窝/热点）"。
+/// 原代码引用了不存在的 NetworkPath / NWPathParameters 类型（Network 框架里没有），
+/// 且未 import Network，编译必失败。这里用 NWPathMonitor 做最小正确实现。
+enum NetworkChecker {
+    private static let monitor: NWPathMonitor = {
+        let m = NWPathMonitor()
+        m.start(queue: DispatchQueue(label: "dev.localmt.netpath"))
+        return m
+    }()
+
+    static func isExpensive() -> Bool {
+        let path = monitor.currentPath   // 访问 monitor 触发其惰性初始化并启动监听
+        return path.usesInterfaceType(.cellular) || path.isExpensive
+    }
+}
