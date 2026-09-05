@@ -1,5 +1,25 @@
 # 状态报告
 
+## 第二轮审查（2026-09-06，Arena，基于 main@57f5e2f + PR 分支 df19cbb）
+
+### 输入证据
+- Hermes 侧 main 新增 a39c10b（build_llama_ios.sh 加 -DLLAMA_BUILD_APP=OFF + libtool 合并单库方案）与 57f5e2f（LAST_BUILD.txt：xcframework 37MB 构建成功，nm 验证 4 处符号）——CMake 层发现与 Arena 的头文件层发现互补，已互审通过
+- `tools/verify/verify_llama_api.sh` 在沙箱重跑：两探针结论符合预期（v0.4.0 API 漂移修复成立）
+
+### 本轮新发现并已修复（三处，两个分支交付）
+1. **必炸**：`core/model_manifest.py validate()` 只放行 https:// → `install-on-iphone15.sh` 内置的 make_manifest（--base-url bundle://models）与交接提示第 3 步均 exit 2 中断（`--skip-url-check` 跳不过 validate）。已放行 bundle://（App 内分发场景无 CDN 语义）；`check_urls` 同时跳过非 http(s)（否则 urlopen 对未知 scheme 抛未捕获 ValueError）。**沙箱实证**：462000000 字节稀疏文件 + 真实文件名复刻 → exit 0，39 测试通过
+2. **质量偏离**：Swift buildPrompt 恒英文指令 + "American English"（源头是 docs/08 PocketPal 手测示例，docs/03 并无 prompt 章节佐证"全称论"），违反模型卡/core/docs/01/docs/06 的"中→英必须中文指令+「英语」"。已按 core/prompt.py `_default` 逐字模板修复，Support.swift 误导注释与 docs/08 示例同步修正
+3. **再运行炸弹**（Hermes a39c10b 引入）：构建成功后重跑 `build_llama_ios.sh --device-only`（LAST_BUILD.txt 明文记载的再生成路径）→ find 会把 out/libllama-all.a 拷到自身（cp same-file，set -e 中断）；device-only 路径 libtool 输出还落在输入 glob 目录内。已修（find 排除产物目录、合并产物写 merged/ 子目录），cp 行为新旧对比已仿真实证
+
+### 分支交付（均为 arena/* + PR，未动 main）
+- `arena/fix-first-build-blockers @ df19cbb`（原 9 处编译修复之上追加）：948d4e1 manifest bundle://、df19cbb prompt 指令语言
+- `arena/fix-build-script-rerun @ 067a752`（基于 main@57f5e2f，仅动 build_llama_ios.sh）：幂等修复
+- 已知合并摩擦：PR 分支与 main 在 handoff/LAST_BUILD.txt 双边有改动（纯文档，冲突可手解）
+
+### Hermes 下一步注意（已写入 NEXT.md）
+- 下载权重前先 `mkdir -p ios/Resources/models`（目录被 .gitignore，新克隆不存在；交接提示里的裸 curl 不会建目录）
+- 两个 arena 分支都合并后再跑装机流程
+
 ## 已验证 ✓（2026-09-06，Arena，基于 main@7639637）
 
 ### 环境/仓库
