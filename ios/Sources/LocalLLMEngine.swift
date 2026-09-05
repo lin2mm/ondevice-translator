@@ -40,17 +40,25 @@ final class LocalLLMTranslateEngine: TranslateEngine {
     }
 
     /// 术语表 + 已确认的 TM 例句进 prompt。不加 system prompt（模型卡明确不需要）。
+    /// 指令语言遵循模型卡要求，core/prompt.py 的 prompt_lang_for 为唯一事实源
+    ///（docs/01 §选型、docs/06 风险#10 一致）：中→英 用中文指令+「英语」，英→中 用英文指令+"Chinese"。
+    /// 指令语言/语言名写错在 1.8B 上是实测质量差距（docs/06 #10），不是玄学。
+    /// 旧实现恒用英文指令 + "American English" 全称（照抄 docs/08 的 PocketPal 手测示例），
+    /// 与 core 模板相悖，已在 arena 分支修正；docs/08 的示例同步修正。
     private func buildPrompt(_ chunk: String, dir: LangPair.Direction) -> Prompt {
-        var user = ""
+        var head = ""
         let terms = glossary.hints(for: chunk, direction: dir)
         if !terms.isEmpty {
-            user += "Terminology to follow:\n" + terms.map { "- \($0)" }.joined(separator: "\n") + "\n\n"
+            head += "Terminology to follow:\n" + terms.map { "- \($0)" }.joined(separator: "\n") + "\n"
         }
         if let shots = tm?.fewShot(for: chunk, direction: dir, k: 3), !shots.isEmpty {
-            user += "Reference translations:\n" + shots.map { "- \($0)" }.joined(separator: "\n") + "\n\n"
+            head += "Reference translations:\n" + shots.map { "- \($0)" }.joined(separator: "\n") + "\n"
         }
-        user += "Translate the following into \(dir.targetFullName). Output only the translation.\n\n\(chunk)"
-        return Prompt(user: user)
+        // 与 core/prompt.py _default 的两个分支逐字一致（含标点与"只需要输出翻译后的结果"措辞）
+        let instruction = dir.isToChinese
+            ? "Translate the following text into Chinese. Note that you should only output the translated result without any additional explanation:"
+            : "将以下文本翻译为 英语，注意只需要输出翻译后的结果，不要额外解释："
+        return Prompt(user: head + instruction + "\n\n" + chunk)
     }
 }
 
