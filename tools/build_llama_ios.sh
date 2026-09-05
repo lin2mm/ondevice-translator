@@ -18,6 +18,7 @@ say(){ echo ""; echo "[llama-ios] $*"; }
 
 command -v cmake >/dev/null || { say "missing cmake: brew install cmake ninja"; exit 1; }
 command -v xcodebuild >/dev/null || { say "missing Xcode"; exit 1; }
+command -v libtool >/dev/null || { say "missing libtool (Xcode command line tools)"; exit 1; }
 xcrun --sdk iphoneos --show-sdk-path >/dev/null || { say "iphoneos SDK not found"; exit 1; }
 
 if [ ! -d "$SRC/.git" ]; then
@@ -28,11 +29,15 @@ else
   say "reusing existing $SRC"
 fi
 
-build_one(){
-  local sdk="$1"
-  local tag="$2"
+say "=== Building llama.cpp ==="
+
+build_arch(){
+  local sdk="$1"        # iphoneos or iphonesimulator
+  local tag="$2"        # arm64 or arm64-simulator
+  local out_suffix="$3" # ios-arm64 or ios-arm64-simulator
   local bdir="$ROOT/build/llama-$tag"
-  say "building $tag (sdk=$sdk)"
+  local outdir="$bdir/out"
+
   cmake -S "$SRC" -B "$bdir" -G Ninja \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT="$sdk" \
@@ -40,43 +45,59 @@ build_one(){
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DBUILD_SHARED_LIBS=OFF \
     -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF \
-    -DLLAMA_BUILD_SERVER=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_CURL=OFF \
+    -DLLAMA_BUILD_SERVER=OFF -DLLAMA_BUILD_APP=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_CURL=OFF \
     -DGGML_METAL=ON \
     -DGGML_METAL_EMBED_LIBRARY=ON \
     -DGGML_LLAMAFILE=ON -DGGML_NATIVE=OFF \
     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
     -DCMAKE_C_FLAGS="-O3" -DCMAKE_CXX_FLAGS="-O3"
+
   cmake --build "$bdir" --parallel "$(sysctl -n hw.ncpu)"
-  mkdir -p "$bdir/out/Headers"
-  cp "$SRC/include/llama.h" "$SRC/ggml/include/"*.h "$bdir/out/Headers/"
-  # v0.4.0 uses lib*.a naming (libllama.a, libggml.a, libggml-base.a, libggml-cpu.a, libggml-metal.a)
-  find "$bdir" -maxdepth 4 \( \
-        -name 'libllama.a' -o -name 'libggml.a' \
-        -o -name 'libggml-base.a' -o -name 'libggml-cpu.a' \
-        -o -name 'libggml-metal.a' -o -name 'libllama-common-base.a' \
-        \) -exec cp -f {} "$bdir/out/" \;
-  ls -l "$bdir/out"
-  echo "$bdir/out"
+  mkdir -p "$outdir/Headers"
+  cp "$SRC/include/llama.h" "$SRC/ggml/include/"*.h "$outdir/Headers/"
+  find "$bdir" -name "*.a" -type f -exec cp -f {} "$outdir/" \;
+  ls -l "$outdir"
+  echo "$outdir"
 }
 
-DEV_OUT=$(build_one iphoneos ios-arm64 | tail -1)
-mkdir -p "$ROOT/ios/Vendor" && rm -rf "$OUT"
-args=(-create-xcframework -library "$DEV_OUT/libllama.a" -headers "$DEV_OUT/Headers")
-for l in libggml libggml-base libggml-cpu libggml-metal libllama-common-base; do
-  [ -f "$DEV_OUT/$l.a" ] && args+=(-library "$DEV_OUT/$l.a" -headers "$DEV_OUT/Headers")
-done
+# Build device
+DEV=$(build_arch iphoneos arm64 ios-arm64 | tail -1)
+
 if [ $DEVICE_ONLY -eq 0 ]; then
-  SIM_OUT=$(build_one iphonesimulator ios-arm64-simulator | tail -1)
-  args+=(-library "$SIM_OUT/libllama.a" -headers "$SIM_OUT/Headers")
-  for l in libggml libggml-base libggml-cpu libggml-metal libllama-common-base; do
-    [ -f "$SIM_OUT/$l.a" ] && args+=(-library "$SIM_OUT/$l.a" -headers "$SIM_OUT/Headers")
-  done
+  # Build simulator
+  SIM=$(build_arch iphonesimulator arm64-simulator ios-arm64-simulator | tail -1)
 fi
-xcodebuild "${args[@]}" -output "$OUT"
+
+say "=== Creating xcframework ==="
+
+mkdir -p "$ROOT/ios/Vendor"
+rm -rf "$OUT"
+
+if [ $DEVICE_ONLY -eq 1 ]; then
+  # Device-only: merge all libs and create single-slice xcframework
+  mkdir -p "$DEV/merged"
+  libtool -static -o "$DEV/libllama-all.a" $DEV/*.a 2>&1 | grep -v "has no symbols" || true
+  xcodebuild -create-xcframework \
+    -library "$DEV/libllama-all.a" -headers "$DEV/Headers" \
+    -output "$OUT"
+else
+  # Device + Simulator: create xcframework with two slices
+  # Note: we must use -static-library and specify libraries with their own headers
+  mkdir -p "$DEV/merged" "$SIM/merged"
+  libtool -static -o "$DEV/merged/libllama-all.a" $DEV/*.a 2>&1 | grep -v "has no symbols" || true
+  libtool -static -o "$SIM/merged/libllama-all.a" $SIM/*.a 2>&1 | grep -v "has no symbols" || true
+
+  xcodebuild -create-xcframework \
+    -library "$DEV/merged/libllama-all.a" -headers "$DEV/Headers" \
+    -library "$SIM/merged/libllama-all.a" -headers "$SIM/Headers" \
+    -output "$OUT"
+
+  rm -rf "$DEV/merged" "$SIM/merged"
+fi
 
 say "done: $(du -sh "$OUT" | cut -f1)  slices: $(ls "$OUT" | tr '\n' ' ')"
 say "verify: nm must contain llama_model_load_from_file"
-count=$(nm -gU "$OUT/ios-arm64/libllama.a" 2>/dev/null | grep -c llama_model_load_from_file || true)
+count=$(nm -gU "$OUT/ios-arm64/libllama-all.a" 2>/dev/null | grep -c llama_model_load_from_file || true)
 if [ "${count:-0}" -gt 0 ]; then
   say "OK: found $count occurrence(s) of llama_model_load_from_file"
 else
