@@ -1,43 +1,60 @@
 # 首次构建日志
 
-commit: b24ef87
-time: 2026-09-06T00:00:00Z
+commit: a39c10b
+time: 2026-09-06T02:54:00Z
 cmd: |
-  1. git init && git add -A
-  2. 添加 AGENTS.md、handoff/STATUS.md、handoff/NEXT.md、handoff/LAST_BUILD.txt
-  3. 删除 build_llama_ios.sh.bak（占位文件）
-  4. git commit -m "chore: initial commit with AGENTS.md and handoff docs"
-  5. gh repo create --private --source=. --remote=origin --push
-  6. 添加 Deploy Key：arena-ondevice-translator-ro（write=true）
+  1. rm -rf build/llama-ios-arm64 ios/Vendor/llama.xcframework
+  2. ./tools/build_llama_ios.sh --device-only
+  3. git add tools/build_llama_ios.sh
+  4. git commit && git push
 exit: 0
-note: 首次提交完成，远程仓库已创建并推送，Arena 可通过 Deploy Key 推送 arena/* 分支
+note: xcframework 构建成功，修复了 v0.4.0 编译问题
 
 ---
 
-推送记录:
-- 63 个文件，6844 行代码
-- 排除 ios/Vendor/llama.xcframework（生成产物）
-- 排除 models/*.gguf（462MB 权重待后下载）
-- 私有仓库 main 分支已更新
-- Deploy Key: arena-ondevice-translator-ro (ID 162387211)
+## 第二次构建记录
+
+### 2026-09-06 02:54 完成 xcframework 构建
+
+**提交**：a39c10b
+
+**问题**： llama.cpp v0.4.0 需要 `-DLLAMA_BUILD_APP=OFF` 禁用示例程序，否则编译失败（找不到 `build-info.h`、`arg.h` 等头文件）
+
+**产物**：
+- ios/Vendor/llama.xcframework (37MB)
+- 包含：ios-arm64 slice
+- libllama-all.a (合并所有符号)
+- Headers/ (llama.h, ggml-*.h)
+
+**验证**：
+- `nm -gU ios-Vendor/llama.xcframework/ios-arm64/libllama-all.a | grep llama_model_load_from_file` → 4 次 occurrence ✓
+
+**注意**：xcframework 不提交 Git（.gitignore 保留），目标机器上 `./tools/build_llama_ios.sh --device-only` 即可重新生成
 
 ---
 
-pending: llama.xcframework 构建 (tools/build_llama_ios.sh)
-pending: Xcode 构建 LocalMT.app
-pending: 462MB 权重下载 & SHA256 校验
-pending: manifest.json 重新生成
-pending: 手机装机验证 (iPhone 15 真机)
+## 进度更新
+
+已完成：
+- [x] llama.xcframework 构建 ✅ (device-only)
+- [x] Swift 侧编译错误修复 ✅ (Arena PR b371891)
+
+待进行：
+- [ ] 462MB Hy-MT2 权重下载 & SHA256 校验
+- [ ] Xcodegen 生成 LocalMT.xcodeproj
+- [ ] Xcode 编译 LocalMT.app
+- [ ] manifest.json 生成 (需运行 ./ios/install-on-iphone15.sh)
+- [ ] iPhone 15 真机装机验证
 
 ---
 
 GitHub 仓库信息:
 - URL: https://github.com/lin2mm/ondevice-translator
-- 可见性: private
+- 可见性: private  
 - 供 Arena 分支: main
-- HEAD commit: b24ef87
+- HEAD commit: a39c10b
 
 协作规则:
 - Arena 推送 arena/* 工作分支
-- Hermes 修改 main 或其他分支
-- 通过 PR 交接，不同时代同一工作分支
+- Hermes 在 Mac 上执行 xcframework 构建、Xcode 编译、装机
+- 通过 PR 交接，不同时同一工作分支
