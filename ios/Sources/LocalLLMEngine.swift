@@ -137,9 +137,15 @@ enum OutputSanitizer {
 }
 
 extension Character {
+    // 全仓唯一的 isCJK（LocalMTApp.swift 里的同名扩展已删除：同模块重复声明会编译失败）。
+    // 区间是两处旧定义的并集：CJK 标点/假名/扩展A/统一表意/兼容表意/全角形式。
     var isCJK: Bool {
         guard let v = unicodeScalars.first?.value else { return false }
-        return (0x4E00...0x9FFF).contains(v) || (0x3400...0x4DBF).contains(v)
-            || (0xF900...0xFAFF).contains(v) || (0x3040...0x30FF).contains(v)
+        return (0x3000...0x303F).contains(v)
+            || (0x3040...0x30FF).contains(v)
+            || (0x3400...0x4DBF).contains(v)
+            || (0x4E00...0x9FFF).contains(v)
+            || (0xF900...0xFAFF).contains(v)
+            || (0xFF00...0xFFEF).contains(v)
     }
 }

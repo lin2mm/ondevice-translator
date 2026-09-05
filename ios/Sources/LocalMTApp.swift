@@ -94,12 +94,8 @@ final class TranslateViewModel: ObservableObject {
     }
 }
 
-extension Character {
-    var isCJK: Bool {
-        guard let v = unicodeScalars.first?.value else { return false }
-        return (0x4E00...0x9FFF).contains(v) || (0x3000...0x303F).contains(v) || (0xFF00...0xFFEF).contains(v)
-    }
-}
+// isCJK 的唯一实现放在 LocalLLMEngine.swift（此处原有一份同名扩展，同模块重复声明
+// 会导致 "Invalid redeclaration of 'isCJK'" 编译错误，已删除；区间已并入那一份）。
 
 struct ContentView: View {
     @ObservedObject var vm: TranslateViewModel

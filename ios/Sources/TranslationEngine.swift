@@ -24,7 +24,15 @@ public struct SamplingParams: Sendable {
     public var topK: Int32 = 20
     public var repeatPenalty: Float = 1.05
     public init() {}
-    public static let safe = SamplingParams()   // 重试档由 bridge 的 +retry 提供，这里是 Swift 侧占位
+    /// 两档与 core/prompt.py 的 HYMT2_SAMPLING / HYMT2_SAMPLING_SAFE 逐字一致。
+    /// 注意：bridge 按 temperature < 0.5 选择 LTSampling.retry() —— 所以 safe 的温度
+    /// 必须是 0.3（原占位写法温度 0.7 会导致降档重试永远不触发）。
+    public static let standard = SamplingParams()
+    public static let safe: SamplingParams = {
+        var s = SamplingParams()
+        s.temperature = 0.3; s.topP = 0.8; s.topK = 40; s.repeatPenalty = 1.08
+        return s
+    }()
 }
 
 public enum EngineError: LocalizedError {
