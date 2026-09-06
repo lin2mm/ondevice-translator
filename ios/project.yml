@@ -51,6 +51,8 @@ targets:
       # (A) 本地编出来的 xcframework（tools/build_llama_ios.sh 产出后放到 Vendor/）
       - framework: Vendor/llama.xcframework
         embed: false
+      - framework: System/Library/Frameworks/Accelerate.framework
+        embed: false
       # (B) 不想手编就改用 SPM：把上面两行注释掉，打开 project.yml 底部 packages 里的 llama.swift，
       #     这里换成 ` - package: llama.swift
       #                 - framework: llama`

@@ -257,7 +257,7 @@ public actor ModelStore {
         if ok {
             let final = path(for: asset)
             try? fm.removeItem(at: final)
-            try fm.moveItem(at: part, to: final)
+            try? fm.moveItem(at: part, to: final)
             try? fm.removeItem(at: part.appendingPathExtension("json"))
             retries = 0
             transition(.ready(assetID: asset.id, path: final))
@@ -314,7 +314,7 @@ private final class ResumeDelegate: NSObject, URLSessionTaskDelegate, URLSession
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         try? JSONEncoder().encode(PartInfo(bytes: written)).write(to: sidecar)
-        handle?.close()
+        try? handle?.close()
         onFinish?(error)
     }
 }

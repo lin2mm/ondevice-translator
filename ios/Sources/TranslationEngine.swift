@@ -89,7 +89,7 @@ public final class HyMTLlamaEngine: TranslationEngine, @unchecked Sendable {
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
             q.async {
                 do {
-                    try self.bridge.loadModelAtPath(self.modelURL.path, nCtx: Int32(self.nCtx),
+                    try self.bridge.loadModel(atPath: self.modelURL.path, nCtx: Int32(self.nCtx),
                                                     threads: self.threads, gpuLayers: self.gpuLayers)
                     self.isReady = true
                     self.log.info("loaded backend=\(LTLlamaBridge.backendInfo()) ctx=\(self.nCtx) mmap=on")
@@ -107,7 +107,7 @@ public final class HyMTLlamaEngine: TranslationEngine, @unchecked Sendable {
         let src = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: q)
         src.setEventHandler { [weak self] in
             guard let self else { return }
-            let ev = src.data ?? []
+            let ev = src.data
             if ev.contains(.critical) { self.unload(); self.log.error("memory critical -> unloaded") }
             else { self.log.notice("memory warning -> 建议降档") }
         }
@@ -134,7 +134,7 @@ public final class HyMTLlamaEngine: TranslationEngine, @unchecked Sendable {
                     let out = try self.bridge.translateUserText(prompt.user, maxNewTokens: Int32(maxNewTokens),
                                                                 sampling: sp,
                                                                 onToken: { partial in onToken?(partial) })
-                    c.resume(returning: out ?? "")
+                    c.resume(returning: out)
                 } catch {
                     c.resume(throwing: EngineError.loadFailed(error.localizedDescription))
                 }
