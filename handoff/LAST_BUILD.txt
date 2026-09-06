@@ -33,18 +33,35 @@ note: xcframework 构建成功，修复了 v0.4.0 编译问题
 
 ---
 
-## 进度更新
+## 第三次构建记录
 
-已完成：
-- [x] llama.xcframework 构建 ✅ (device-only)
-- [x] Swift 侧编译错误修复 ✅ (Arena PR b371891)
+### 2026-09-06 03:12 模型下载 + manifest + Swift 错误修复
 
-待进行：
-- [ ] 462MB Hy-MT2 权重下载 & SHA256 校验
-- [ ] Xcodegen 生成 LocalMT.xcodeproj
-- [ ] Xcode 编译 LocalMT.app
-- [ ] manifest.json 生成 (需运行 ./ios/install-on-iphone15.sh)
-- [ ] iPhone 15 真机装机验证
+**模型**：Hy-MT2-1.8B-1.25Bit.gguf (440MB) ✅
+**SHA256**：cc497fe8f033b52b3b8b00a7669e9661435432f9d4cd43f7ed24400c01507a93 ✅
+**manifest.json**：bundle-2026.09.06 ✅
+**xcodegen generate**：成功 ✅
+**xcodebuild**：**失败**（Swift 编译错误，已修复待验证）
+
+**已修复的 Swift 错误**：
+1. `Support.swift:15` `Locale.Language.language` → `.identifier`（iOS 26 SDK API 漂移）
+2. `Support.swift:156` `try? data.write(to: url) != nil` → `(try? data.write(to: url)) != nil`
+3. `TranslationEngine.swift:93` `loadModelAtPath` 去掉 `error:` 参数
+4. `TranslationEngine.swift:138` `translateUserText` 改为 throws 调用，去掉 `error:` 参数
+
+**待验证**：
+- [ ] Xcode 重新编译（修复后首次验证）
+- [ ] 462MB 权重打包进 App
+- [ ] iPhone 15 真机装机
+- [ ] 飞行模式中→英/英→中离线翻译
+
+---
+
+## 当前分支状态
+
+- main HEAD：400ced6（已合入 Arena PR）
+- 本地 ahead of origin/main by 3 commits（未推送：model_manifest.py 修复 + manifest.json + Swift 错误修复）
+- 下次继续：先 `git push` 同步，然后重新跑 xcodebuild
 
 ---
 
@@ -52,32 +69,9 @@ GitHub 仓库信息:
 - URL: https://github.com/lin2mm/ondevice-translator
 - 可见性: private  
 - 供 Arena 分支: main
-- HEAD commit: a39c10b
+- HEAD commit: 400ced6
 
 协作规则:
 - Arena 推送 arena/* 工作分支
 - Hermes 在 Mac 上执行 xcframework 构建、Xcode 编译、装机
 - 通过 PR 交接，不同时同一工作分支
-
----
-
-# Arena 静态审查记录（分支 arena/fix-first-build-blockers）
-
-commit: 基于 7639637 (main)
-time: 2026-09-06T00:00:00Z（Arena 侧会话时间，非 Mac 实测）
-cmd: |
-  1. git clone（Deploy Key）→ 核对 main@7639637，工作树干净
-  2. git ls-remote --tags ggml-org/llama.cpp → v0.4.0 存在（5266f24, 2026-09-04）
-  3. 浅克隆 llama.cpp v0.4.0 → 逐字段核对 llama.h / ggml-backend.h
-  4. g++ -fsyntax-only 探针（vendor-verify/probe_v040.cpp）：补丁后 API 全部通过；
-     对照探针（probe_old.cpp）复现原代码 3 个编译错误（use_mmap/use_lock/penalties 4参）
-  5. python3 -m pytest tests/ -q → 39 passed
-  6. python3 tools/lint_platform_code.py → 通过（静态约束）
-  7. 出补丁 7 文件（见 handoff/STATUS.md 表格）+ 更新交接三件套
-exit: 0（以上全部在 Arena 沙箱通过）
-first_error: 无
-note: |
-  Arena 沙箱无 Xcode/Swift 编译器，iOS 目标代码的修复依据 = 真实 v0.4.0 头文件的
-  编译级核对 + Apple 官方文档核对 + 逐符号交叉审查，非臆测。
-  "能编译过 App"仍待 Hermes 在 Mac 上跑 xcodebuild 确认。
-pending: 与 main@7639637 的 pending 相同（xcframework 构建/Xcode 编译/权重/装机/离线验收）

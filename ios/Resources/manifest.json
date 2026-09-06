@@ -1,10 +1,35 @@
 {
   "schema": 1,
-  "version": "stage1-none",
-  "updated_at": "2026-09-05T00:00:00Z",
+  "version": "bundle-2026.09.06",
+  "updated_at": "2026-09-05T19:44:48Z",
   "glossary_schema": 1,
   "min_app_build": 1,
   "forced_update": false,
-  "assets": [],
-  "_note": "阶段1 无资产（用系统 Translation 框架）。阶段2 用 `python3 ../../tools/build_manifest.py --dir ./weights --base-url https://你的CDN/models --version 2026.09.05-a --out Resources/manifest.json` 生成，sha256/体积必须实测。"
+  "assets": [
+    {
+      "id": "Hy-MT2-1.8B-1.25Bit",
+      "url": "bundle://models/Hy-MT2-1.8B-1.25Bit.gguf",
+      "sha256": "cc497fe8f033b52b3b8b00a7669e9661435432f9d4cd43f7ed24400c01507a93",
+      "size_bytes": 461860800,
+      "quant": "1.25bit",
+      "params_b": 1.8,
+      "min_ram_bytes": 3000000000,
+      "min_free_bytes": 520000000,
+      "min_android_api": 28,
+      "supports": [
+        "text",
+        "terminology",
+        "style",
+        "structured"
+      ],
+      "languages": [
+        "zh",
+        "en"
+      ],
+      "engine": "llama-cpp",
+      "license": "Apache-2.0",
+      "notes": "默认档：462MB，质量/体积最优（腾讯 Hunyuan Hy-MT2, Apache-2.0）",
+      "tier": 1
+    }
+  ]
 }

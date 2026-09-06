@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		58FAE82479084ACC59A084BD /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFFEC7B4BCDB216E7E416609 /* Support.swift */; };
+		60783C71802C1697D838AEF4 /* Hy-MT2-1.8B-1.25Bit.gguf in Resources */ = {isa = PBXBuildFile; fileRef = D87ACAA1F04531FF7A054B5A /* Hy-MT2-1.8B-1.25Bit.gguf */; };
 		62D607D1F741EF89C646E0AF /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 71E467A0CB7B122FC5387F44 /* manifest.json */; };
 		67901BCA9DBA50BAAE135859 /* TranslationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DA6796DF96C8A3B558A262 /* TranslationEngine.swift */; };
 		6F042B0D786BD81A058332FC /* LocalMTApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18ECF7B1B5774A63C84CDC74 /* LocalMTApp.swift */; };
@@ -27,6 +28,7 @@
 		7752CD683FFE7570EA7D057C /* ModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStore.swift; sourceTree = "<group>"; };
 		8383D5BB745A8D531CED79E3 /* EngineFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineFactory.swift; sourceTree = "<group>"; };
 		87DA6796DF96C8A3B558A262 /* TranslationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationEngine.swift; sourceTree = "<group>"; };
+		D87ACAA1F04531FF7A054B5A /* Hy-MT2-1.8B-1.25Bit.gguf */ = {isa = PBXFileReference; path = "Hy-MT2-1.8B-1.25Bit.gguf"; sourceTree = "<group>"; };
 		E4BFD5BB08C71A923E0293B3 /* LocalLLMEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMEngine.swift; sourceTree = "<group>"; };
 		EE47AFE76DCB4045E146623E /* llama.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = llama.xcframework; path = Vendor/llama.xcframework; sourceTree = "<group>"; };
 		EFFEC7B4BCDB216E7E416609 /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
@@ -59,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				71E467A0CB7B122FC5387F44 /* manifest.json */,
+				85FD7D98DA802FC40F8E9FF0 /* models */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -69,6 +72,14 @@
 				EE47AFE76DCB4045E146623E /* llama.xcframework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		85FD7D98DA802FC40F8E9FF0 /* models */ = {
+			isa = PBXGroup;
+			children = (
+				D87ACAA1F04531FF7A054B5A /* Hy-MT2-1.8B-1.25Bit.gguf */,
+			);
+			path = models;
 			sourceTree = "<group>";
 		};
 		C0A2F23E3BA0EF20426F34F3 /* Sources */ = {
@@ -162,6 +173,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				60783C71802C1697D838AEF4 /* Hy-MT2-1.8B-1.25Bit.gguf in Resources */,
 				62D607D1F741EF89C646E0AF /* manifest.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -271,7 +283,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.10;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -367,7 +379,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.10;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;

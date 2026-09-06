@@ -88,10 +88,9 @@ public final class HyMTLlamaEngine: TranslationEngine, @unchecked Sendable {
         if isReady { return }
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
             q.async {
-                var err: NSError?
                 guard self.bridge.loadModelAtPath(self.modelURL.path, nCtx: Int32(self.nCtx),
-                                                  threads: self.threads, gpuLayers: self.gpuLayers, error: &err) else {
-                    c.resume(throwing: EngineError.loadFailed(err?.localizedDescription ?? "未知")); return
+                                                  threads: self.threads, gpuLayers: self.gpuLayers) else {
+                    c.resume(throwing: EngineError.loadFailed("加载失败：确认 llama.cpp 支持 hunyuan-dense 与该量化类型")); return
                 }
                 self.isReady = true
                 // 这行日志是"慢得莫名其妙"的唯一现场证据：必须出现 METAL
@@ -130,15 +129,14 @@ public final class HyMTLlamaEngine: TranslationEngine, @unchecked Sendable {
             q.async {
                 if shouldCancel() { self.bridge.requestCancel() }
                 let sp = sampling.temperature < 0.5 ? LTSampling.retry() : LTSampling.defaults()
-                var captured: String?
-                var failure: NSError?
-                let out = self.bridge.translateUserText(prompt.user, maxNewTokens: Int32(maxNewTokens),
-                                                        sampling: sp,
-                                                        onToken: { partial in onToken?(partial) },
-                                                        error: &failure)
-                captured = out
-                if let failure { c.resume(throwing: EngineError.loadFailed(failure.localizedDescription)) }
-                else { c.resume(returning: captured ?? "") }
+                do {
+                    let out = try self.bridge.translateUserText(prompt.user, maxNewTokens: Int32(maxNewTokens),
+                                                                sampling: sp,
+                                                                onToken: { partial in onToken?(partial) })
+                    c.resume(returning: out ?? "")
+                } catch {
+                    c.resume(throwing: EngineError.loadFailed(error.localizedDescription))
+                }
             }
         }
     }

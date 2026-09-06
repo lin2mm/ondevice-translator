@@ -149,8 +149,8 @@ class Manifest:
                 errs.append(f"{a.id}: sha256 不是 64 位小写十六进制（发布前请用 tools/build_manifest.py 生成）")
             if a.size_bytes <= 1_000_000:
                 errs.append(f"{a.id}: size_bytes={a.size_bytes} 小得可疑（单位写错？）")
-            if not a.url.startswith("https://"):
-                errs.append(f"{a.id}: url 必须是 https")
+            if not (a.url.startswith("https://") or a.url.startswith("bundle://")):
+                errs.append(f"{a.id}: url 必须是 https 或 bundle://（离线内置用 bundle://）")
             if a.size_bytes > 0 and a.min_free_bytes < int(a.size_bytes * 1.05):
                 # 允许 1.05x 余量：解压/临时文件需要空间
                 errs.append(f"{a.id}: min_free_bytes({a.min_free_bytes}) < size_bytes({a.size_bytes})，下载中途会满盘")

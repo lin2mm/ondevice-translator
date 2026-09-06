@@ -12,10 +12,10 @@ enum LangPair {
 
     static func direction(source: Locale.Language, target: Locale.Language) -> Direction {
         // 判定以"目标语言"为准，来源只做兜底：用户可能从任一方向点翻译
-        let t = target.language?.identifier ?? ""
+        let t = target.identifier
         if t.hasPrefix("zh") { return Direction(isToChinese: true) }
         if t.hasPrefix("en") { return Direction(isToChinese: false) }
-        let s = source.language?.identifier ?? ""
+        let s = source.identifier
         return Direction(isToChinese: !s.hasPrefix("zh"))
     }
 }
@@ -153,7 +153,7 @@ final class TranslationMemory: @unchecked Sendable {
         let snapshot = items
         lock.unlock()
         if let data = try? JSONSerialization.data(withJSONObject: snapshot.map {
-            ["src": $0.src, "dst": $0.dst, "w": $0.weight] }), try? data.write(to: url) != nil { return }
+            ["src": $0.src, "dst": $0.dst, "w": $0.weight] }), (try? data.write(to: url)) != nil { return }
     }
 
     /// 相似度用字符 3-gram Jaccard + 长度惩罚（core/learn.py 的算法），阈值 0.34。
