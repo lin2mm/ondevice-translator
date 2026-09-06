@@ -117,7 +117,7 @@ struct ContentView: View {
                         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
                         .overlay(alignment: .topTrailing) {
                             if vm.input.isEmpty {
-                                Text("粘贴即译 · 全程本地").font(.footnote).foregroundStyle(.tertiary).padding(12)
+                                Text("粘贴即译 · 全程离线 · 无需网络").font(.footnote).foregroundStyle(.tertiary).padding(12)
                                     .allowsHitTesting(false)
                             }
                         }
@@ -174,7 +174,7 @@ struct ContentView: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("本地翻译")
+            .navigationTitle("本地离线翻译")
             .toolbar {
                 ToolbarItem(placement: .status) {
                     Text("引擎：\(vm.engineName)").font(.caption2).foregroundStyle(.secondary)

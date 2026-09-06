@@ -50,6 +50,8 @@ DEFAULTS = {
 def check_urls(m: Manifest, timeout: float = 12.0) -> list[str]:
     problems: list[str] = []
     for a in m.assets:
+        if not a.url.startswith(("http://", "https://")):
+            continue  # bundle:// 等 App 内占位无 CDN 可 HEAD；urlopen 对未知 scheme 抛未捕获的 ValueError
         req = urllib.request.Request(a.url, method="HEAD")
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:

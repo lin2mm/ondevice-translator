@@ -1,5 +1,37 @@
 # 状态报告
 
+## 第三轮审查（2026-09-06，Arena，基于 main@640b59a）
+
+### Hermes 三连修的审查结论：通过，认可合并
+c7248f2 / 59ed007 / 990b4d2 修的正是 Arena 上轮标注"Swift 侧可能漏网、需 Mac 验证"的类别：
+- ObjC `error:**` 方法导入 Swift 后必须 `try`+do/catch（loadModelAtPath/translateUserText
+  的 `&err` 旧写法无法编译）——Arena 静态审查漏判，教训记录：bridging header 调用模式
+  必须按 Swift 导入规则二次核对
+- `Locale.Language.languageCode?.identifier`、`DispatchSource.data` 非 Optional、
+  `try?` 括号优先级、Accelerate.framework（ggml-cpu 链接需要）——均为真实编译修复
+- 小瑕疵（不阻塞）：ModelStore `try? moveItem` 失败仍转 .ready（下载路径，阶段 2 再议）
+
+### 报告事实核对（以 git 为准）
+- 640b59a 在 main ✓；我的 PR 分支在 ea76790 处被合并（400ced6）✓
+- manifest `size_bytes=461860800`：440MB(MiB)=462MB(MB) 同一文件，无矛盾
+- bundle:// 校验通过的原因：Hermes 手工应用了 948d4e1 的 core 半边（语义等价）；
+  tools 半边（check_urls 对未知 scheme 的 ValueError 防护）当时缺失，本轮已补
+- LAST_BUILD.txt 的"失败待验证"是中间快照；以 640b59a + 聊天终报为准：装机/启动 ✅
+
+### 本轮交付（分支 arena/round-3-flight-debug，基于 main@640b59a）
+| 内容 | 说明 |
+|---|---|
+| cherry-pick df19cbb | prompt 指令语言修复（此前未合并，质量项） |
+| cherry-pick 067a752 | 构建脚本幂等（此前未合并；main 上的脚本重跑仍会 cp same-file 中断） |
+| check_urls 防护 | 948d4e1 的 tools 半边（bundle:// 走 check_urls 会未捕获 ValueError） |
+| tools/verify/inspect_gguf.py | GGUF 元数据体检（自测通过：正确识别 IQ1_S / 标记 UNKNOWN(999) / 检出 chat_template 缺失） |
+| handoff/FLIGHT_DEBUG.md | 无译文定位手册：0 元数据体检 → 1 桌面冒烟 → 2 真机三观测点 → 3 决策树 |
+| UI 文案 + AGENTS.md | ARENA_PROMPT 建议的批准子集（详见 ARENA_REPLY.md） |
+
+### 当前头号疑点（待第 0 步证实/证伪）
+Hy-MT2 "1.25Bit" 极端量化可能是厂商自定义量化类型，stock llama.cpp v0.4.0 或拒载——
+若 inspect_gguf.py 报 UNKNOWN(id)，根因即定，与 iOS 无关。
+
 ## 已验证 ✓（2026-09-06，Arena，基于 main@7639637）
 
 ### 环境/仓库

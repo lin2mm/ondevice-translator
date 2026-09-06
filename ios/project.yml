@@ -31,7 +31,7 @@ targets:
     info:
       path: Support/Info.plist
       properties:
-        CFBundleDisplayName: 本地翻译
+        CFBundleDisplayName: 本地离线翻译
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false      # 端侧推理、无自定义加密 → 免出口申报问卷
         LSApplicationCategoryType: public.app-category.productivity
