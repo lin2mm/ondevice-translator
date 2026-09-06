@@ -88,15 +88,16 @@ public final class HyMTLlamaEngine: TranslationEngine, @unchecked Sendable {
         if isReady { return }
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
             q.async {
-                guard self.bridge.loadModelAtPath(self.modelURL.path, nCtx: Int32(self.nCtx),
-                                                  threads: self.threads, gpuLayers: self.gpuLayers) else {
-                    c.resume(throwing: EngineError.loadFailed("加载失败：确认 llama.cpp 支持 hunyuan-dense 与该量化类型")); return
+                do {
+                    try self.bridge.loadModelAtPath(self.modelURL.path, nCtx: Int32(self.nCtx),
+                                                    threads: self.threads, gpuLayers: self.gpuLayers)
+                    self.isReady = true
+                    self.log.info("loaded backend=\(LTLlamaBridge.backendInfo()) ctx=\(self.nCtx) mmap=on")
+                    self.watchMemory()
+                    c.resume()
+                } catch {
+                    c.resume(throwing: EngineError.loadFailed(error.localizedDescription))
                 }
-                self.isReady = true
-                // 这行日志是"慢得莫名其妙"的唯一现场证据：必须出现 METAL
-                self.log.info("loaded backend=\(self.bridge.backendInfo()) ctx=\(self.nCtx) mmap=on")
-                self.watchMemory()
-                c.resume()
             }
         }
     }

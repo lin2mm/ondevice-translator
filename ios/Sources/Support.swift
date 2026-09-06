@@ -12,10 +12,10 @@ enum LangPair {
 
     static func direction(source: Locale.Language, target: Locale.Language) -> Direction {
         // 判定以"目标语言"为准，来源只做兜底：用户可能从任一方向点翻译
-        let t = target.identifier
+        let t = target.languageCode?.identifier ?? ""
         if t.hasPrefix("zh") { return Direction(isToChinese: true) }
         if t.hasPrefix("en") { return Direction(isToChinese: false) }
-        let s = source.identifier
+        let s = source.languageCode?.identifier ?? ""
         return Direction(isToChinese: !s.hasPrefix("zh"))
     }
 }
